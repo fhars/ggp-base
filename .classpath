@@ -15,5 +15,7 @@
 	<classpathentry kind="lib" path="src/external/Guava/guava-14.0.1.jar"/>
 	<classpathentry kind="lib" path="src/external/reflections/reflections-0.9.9-RC1.jar"/>
 	<classpathentry kind="lib" path="src/external/javassist/javassist.jar"/>
+	<classpathentry kind="lib" path="/usr/share/java/batik-all.jar"/>
+	<classpathentry kind="lib" path="/usr/share/java/xml-apis-ext.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

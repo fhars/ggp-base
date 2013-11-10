@@ -1,9 +1,9 @@
 package org.ggp.base.util.ui;
 
 import java.awt.Dimension;
-import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.StringReader;
@@ -13,10 +13,10 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 
+import org.ggp.base.util.files.FileUtils;
 import org.w3c.dom.Document;
-import org.w3c.tidy.Tidy;
 import org.xhtmlrenderer.resource.XMLResource;
-import org.xhtmlrenderer.simple.Graphics2DRenderer;
+import org.xhtmlrenderer.swing.Java2DRenderer;
 import org.xml.sax.InputSource;
 
 /**
@@ -44,42 +44,49 @@ public class GameStateRenderer {
 
     public static synchronized void renderImagefromGameXML(String gameXML, String XSL, BufferedImage backimage)
     {
-   		Graphics2DRenderer r = new Graphics2DRenderer();
-
+   		
         String xhtml = getXHTMLfromGameXML(gameXML, XSL);
         xhtml = xhtml.replace("<?xml version=\"1.0\" encoding=\"UTF-8\"?>", "");
         
         xhtml = xhtml.replace("<body>", "<body><table width=\"560\" height=\"560\"><tr><td>");
         xhtml = xhtml.replace("</body>", "</td></tr></table></body>");
-        
+
         InputSource is = new InputSource(new BufferedReader(new StringReader(xhtml)));
         Document dom = XMLResource.load(is).getDocument();
 
-        r.setDocument(dom, "http://www.ggp.org/");
-        final Graphics2D g2 = backimage.createGraphics();
-        r.layout(g2, defaultSize);
-        r.render(g2);
-    }
+        Java2DRenderer r = new Java2DRenderer(dom, backimage.getWidth(), backimage.getHeight());
+        
+        ChainingReplacedElementFactory chainingReplacedElementFactory = new ChainingReplacedElementFactory();
+        chainingReplacedElementFactory.addReplacedElementFactory(r.getSharedContext().getReplacedElementFactory());
+        chainingReplacedElementFactory.addReplacedElementFactory(new SVGReplacedElementFactory());
+        r.getSharedContext().setReplacedElementFactory(chainingReplacedElementFactory);
 
+        backimage.setData(r.getImage().getData());
+    }
+    
     private static String getXHTMLfromGameXML(String gameXML, String XSL) {
         XSL = XSL.replace("<!DOCTYPE stylesheet [<!ENTITY ROOT \"http://games.ggp.org/base\">]>", "");
         XSL = XSL.replace("&ROOT;", "http://games.ggp.org/base").trim();
         
         IOString game = new IOString(gameXML);
-        IOString xslIOString = new IOString(XSL);
         IOString content = new IOString("");
         try {
+            File xslFile = File.createTempFile("game-xsl-tmp-", ".xsl");
+            FileUtils.writeStringToFile(xslFile, XSL);
             TransformerFactory tFactory = TransformerFactory.newInstance();
-            Transformer transformer = tFactory.newTransformer(new StreamSource(xslIOString.getInputStream()));
+            Transformer transformer = tFactory.newTransformer(new StreamSource(xslFile));
             transformer.setParameter("width", defaultSize.getWidth()-40);
             transformer.setParameter("height", defaultSize.getHeight()-40);
             transformer.transform(new StreamSource(game.getInputStream()),
                     new StreamResult(content.getOutputStream()));
         } catch (Exception ex) {
             ex.printStackTrace();
-        }
+        } 
         
+        return content.getString();
+/*
         Tidy tidy = new Tidy();
+ 
         tidy.setXHTML(true);
         tidy.setShowWarnings(false);
         tidy.setQuiet(true);
@@ -88,6 +95,7 @@ public class GameStateRenderer {
         IOString tidied = new IOString("");
         tidy.parse(content.getInputStream(), tidied.getOutputStream());        
         return tidied.getString();
+        */
     }
 
     //========IOstring code========
